@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Анализ выручки по городам</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 16px;
+    background: #f1f5f9;
+    color: #222;
+  }
+  .container {
+    max-width: 1024px;
+    margin: auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+    padding: 32px 40px;
+  }
+  h1 {
+    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 32px;
+    border-bottom: 3px solid #3b82f6;
+    padding-bottom: 12px;
+    color: #1e40af;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 32px;
+    align-items: center;
+  }
+  .controls label {
+    font-weight: 700;
+    color: #475569;
+  }
+  input[type="file"] {
+    cursor: pointer;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 600;
+    color: #1e40af;
+    background: #e0e7ff;
+    transition: background 0.2s ease;
+  }
+  input[type="file"]:hover {
+    background: #c7d2fe;
+  }
+  select {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 2px solid #3b82f6;
+    font-size: 1.1rem;
+    font-weight: 600;
+    min-width: 160px;
+    color: #1e40af;
+    background: #e0e7ff;
+    transition: background 0.3s ease;
+  }
+  select:focus {
+    outline: none;
+    background: #c7d2fe;
+  }
+  .stats {
+    background: #dbeafe;
+    padding: 24px 40px;
+    border-radius: 12px;
+    font-weight: 700;
+    color: #1e40af;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: space-around;
+    gap: 40px;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 8px rgb(100 116 139 / 0.2);
+    text-shadow: 0 0 2px rgb(30 64 175 / 0.3);
+  }
+  .stats > div {
+    flex: 1 1 0;
+    text-align: center;
+  }
+  .toggle-btn {
+    user-select: none;
+    cursor: pointer;
+    margin-bottom: 22px;
+    color: #2563eb;
+    font-weight: 700;
+    font-size: 1.05rem;
+    text-align: center;
+    transition: color 0.3s ease;
+  }
+  .toggle-btn:hover {
+    color: #1e40af;
+  }
+  #csvContent {
+    display: none;
+    max-height: 360px;
+    overflow-y: auto;
+    border: 2px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: inset 0 0 8px rgb(148 163 184 / 0.5);
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 3rem;
+    font-size: 1rem;
+  }
+  th, td {
+    padding: 14px 18px;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+    color: #334155;
+    transition: background 0.3s;
+  }
+  thead th {
+    background: #3b82f6;
+    color: white;
+    font-weight: 700;
+    text-shadow: 0 0 1px #1e40af;
+  }
+  tbody tr:nth-child(even) {
+    background: #f1f5f9;
+  }
+  tbody tr:hover {
+    background: #bfdbfe;
+  }
+  #pieCharts {
+    display: flex;
+    justify-content: space-evenly;
+    gap: 48px;
+    flex-wrap: wrap;
+    margin-bottom: 44px;
+  }
+  #pieCharts > div {
+    width: 320px;
+    text-align: center;
+  }
+  #pieCharts canvas {
+    max-width: 100%;
+    box-shadow: 0 4px 10px rgb(59 130 246 / 0.5);
+    border-radius: 12px;
+  }
+  h2.section-title {
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: #2563eb;
+    margin-bottom: 18px;
+    text-shadow: 0 0 3px rgb(37 99 235 / 0.8);
+  }
+  h2 {
+    color: #1e40af;
+    margin-bottom: 18px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Анализ выручки по городам (топ 10)</h1>
+  <div class="controls">
+    <label for="csvFileInput">Выберите CSV файл</label>
+    <input type="file" id="csvFileInput" accept=".csv" />
+    
+    <label for="yearSelector">Год</label>
+    <select id="yearSelector" disabled>
+      <option value="">-- Выберите год --</option>
+    </select>
+  </div>
+  <div class="stats" aria-live="polite">
+    <div id="yearRevenue">Выручка за выбранный год: -</div>
+    <div id="yearShare">Доля выбранного года: -</div>
+    <div id="totalRevenue">Общая выручка: -</div>
+  </div>
+  <div id="pieCharts">
+    <div>
+      <h2 class="section-title">Выручка по годам</h2>
+      <canvas id="pieChartYears" aria-label="Круговая диаграмма выручки по годам" role="img"></canvas>
+    </div>
+    <div>
+      <h2 class="section-title">Топ 10 городов</h2>
+      <canvas id="pieChartCities" aria-label="Круговая диаграмма выручки топ 10 городов" role="img"></canvas>
+    </div>
+  </div>
+  <!-- Топ 10 городов таблицей -->
+  <h2>Топ 10 городов за <span id="currentYearTxt">-</span></h2>
+  <table id="resultsTable" aria-describedby="topCitiesDesc">
+    <caption id="topCitiesDesc" style="text-align:left; font-style:italic; margin-bottom:8px;">Рейтинг городов по выручке за выбранный год</caption>
+    <thead>
+      <tr><th>№</th><th>Город</th><th>Штат</th><th>Выручка ($)</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <!-- Содержимое CSV -->
+  <div class="toggle-btn" id="toggleCsvBtn" role="button" tabindex="0" aria-pressed="false">▼ Показать содержимое CSV</div>
+  <div id="csvContent" role="region" aria-label="Содержимое CSV файла">
+    <h2>Содержимое CSV файла</h2>
+    <table id="csvTable">
+      <thead><tr></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const csvInput = document.getElementById('csvFileInput');
+  const yearSelector = document.getElementById('yearSelector');
+  const yearRevenue = document.getElementById('yearRevenue');
+  const yearShare = document.getElementById('yearShare');
+  const totalRevenue = document.getElementById('totalRevenue');
+  const toggleCsvBtn = document.getElementById('toggleCsvBtn');
+  const csvContent = document.getElementById('csvContent');
+  const csvTableHead = document.querySelector('#csvTable thead tr');
+  const csvTableBody = document.querySelector('#csvTable tbody');
+  const resultsBody = document.querySelector('#resultsTable tbody');
+  const currentYearTxt = document.getElementById('currentYearTxt');
+
+  const ctxCities = document.getElementById('pieChartCities').getContext('2d');
+  const ctxYears = document.getElementById('pieChartYears').getContext('2d');
+
+  let data = [];
+  let uniqueYears = [];
+  let totalRevenueAll = 0;
+  let pieChartYears = null;
+  let pieChartCities = null;
+
+  // Toggle CSV section with ARIA attribute for accessibility
+  toggleCsvBtn.addEventListener('click', () => {
+    const isVisible = csvContent.style.display === 'block';
+    csvContent.style.display = isVisible ? 'none' : 'block';
+    toggleCsvBtn.textContent = isVisible ? '▼ Показать содержимое CSV' : '▲ Скрыть содержимое CSV';
+    toggleCsvBtn.setAttribute('aria-pressed', !isVisible);
+  });
+  toggleCsvBtn.addEventListener('keydown', e => {
+    if(e.key === 'Enter' || e.key === ' ') {
+      toggleCsvBtn.click();
+      e.preventDefault();
+    }
+  });
+
+  csvInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      parseCSV(ev.target.result);
+    };
+    reader.readAsText(file);
+  });
+
+  yearSelector.addEventListener('change', () => {
+    if (yearSelector.value) {
+      updateResults(yearSelector.value);
+    }
+  });
+
+  function parseCSV(text) {
+    data = [];
+    uniqueYears = new Set();
+    totalRevenueAll = 0;
+    csvTableHead.innerHTML = '';
+    csvTableBody.innerHTML = '';
+
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return;
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    headers.forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      csvTableHead.appendChild(th);
+    });
+
+    for (let i=1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const values = lines[i].split(',').map(v => v.trim());
+      if (values.length !== headers.length) continue;
+      const rowObj = {};
+      headers.forEach((h, idx) => {
+        rowObj[h] = values[idx];
+      });
+      // Extract year from order_date if exists, else fallback empty
+      const year = rowObj['order_date'] ? rowObj['order_date'].slice(0, 4) : '';
+      rowObj.year = year;
+      uniqueYears.add(year);
+      // Convert sales to number
+      rowObj.sales = parseFloat(rowObj.sales) || 0;
+      totalRevenueAll += rowObj.sales;
+      // Save row
+      data.push(rowObj);
+      // Render CSV row
+      const tr = document.createElement('tr');
+      values.forEach(value => {
+        const td = document.createElement('td');
+        td.textContent = value;
+        tr.appendChild(td);
+      });
+      csvTableBody.appendChild(tr);
+    }
+
+    uniqueYears = Array.from(uniqueYears).filter(y => y).sort().reverse();
+    yearSelector.innerHTML = '<option value="">-- Выберите год --</option>';
+    uniqueYears.forEach(y => {
+      const option = document.createElement('option');
+      option.value = y;
+      option.textContent = y;
+      yearSelector.appendChild(option);
+    });
+
+    yearSelector.disabled = uniqueYears.length === 0;
+
+    if (uniqueYears.length) {
+      yearSelector.value = uniqueYears[0];
+      updateResults(uniqueYears[0]);
+    } else {
+      updateStats(null);
+      updatePieYears();
+      updatePieCities([]);
+    }
+  }
+
+  function updateResults(selectedYear) {
+    currentYearTxt.textContent = selectedYear;
+
+    // Group by city|state and sum revenue for selected year
+    const cityMap = new Map();
+    data.forEach(row => {
+      if(row.year === selectedYear) {
+        const key = `${row.city}|${row.state}`;
+        if(!cityMap.has(key)) {
+          cityMap.set(key, {city: row.city, state: row.state, revenue: 0});
+        }
+        const cityObj = cityMap.get(key);
+        cityObj.revenue += row.sales;
+      }
+    });
+
+    // Sort by revenue descending
+    const sortedCities = Array.from(cityMap.values())
+      .sort((a,b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Render results table
+    resultsBody.innerHTML = '';
+    sortedCities.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${index+1}</td>
+        <td>${item.city}</td>
+        <td>${item.state}</td>
+        <td>${item.revenue.toLocaleString('en-US', {style:'currency', currency:'USD'})}</td>
+      `;
+      resultsBody.appendChild(tr);
+    });
+
+    // Calculate sum for selected year
+    const selectedSum = sortedCities.reduce((acc, c) => acc + c.revenue, 0);
+
+    // Update stats
+    updateStats(selectedSum);
+
+    // Update charts
+    updatePieCities(sortedCities);
+    updatePieYears();
+  }
+
+  function updateStats(selectedYearRevenue) {
+    yearRevenue.textContent = selectedYearRevenue !== null && selectedYearRevenue !== undefined
+      ? `Выручка за выбранный год: ${selectedYearRevenue.toLocaleString('en-US', {style:'currency', currency:'USD'})}`
+      : 'Выручка за выбранный год: -';
+
+    yearShare.textContent = selectedYearRevenue !== null && totalRevenueAll
+      ? `Доля выбранного года: ${((selectedYearRevenue / totalRevenueAll) * 100).toFixed(2)}%`
+      : 'Доля выбранного года: -';
+
+    totalRevenue.textContent = `Общая выручка: ${totalRevenueAll.toLocaleString('en-US', {style:'currency', currency:'USD'})}`;
+  }
+
+  function updatePieYears() {
+    // Group revenue by year
+    const yearRevenueMap = new Map();
+    data.forEach(row => {
+      if(row.year) {
+        yearRevenueMap.set(row.year, (yearRevenueMap.get(row.year) || 0) + row.sales);
+      }
+    });
+    const labels = Array.from(yearRevenueMap.keys()).sort();
+    const values = labels.map(y => yearRevenueMap.get(y));
+
+    if (pieChartYears) {
+      pieChartYears.data.labels = labels;
+      pieChartYears.data.datasets[0].data = values;
+      pieChartYears.update();
+      return;
+    }
+
+    pieChartYears = new Chart(ctxYears, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Выручка по годам',
+          data: values,
+          backgroundColor: generateColors(values.length),
+          borderWidth: 1,
+          borderColor: '#fff',
+          hoverOffset: 16
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              color: '#1e293b',
+              font: { weight: '600', size: 14 }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: context => {
+                const label = context.label || '';
+                const val = context.parsed || 0;
+                return `${label}: $${val.toLocaleString()}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function updatePieCities(cities) {
+    const labels = cities.map(c => c.city);
+    const values = cities.map(c => c.revenue);
+
+    if (pieChartCities) {
+      pieChartCities.data.labels = labels;
+      pieChartCities.data.datasets[0].data = values;
+      pieChartCities.update();
+      return;
+    }
+
+    pieChartCities = new Chart(ctxCities, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Выручка топ 10 городов',
+          data: values,
+          backgroundColor: generateColors(values.length),
+          borderWidth: 1,
+          borderColor: '#fff',
+          hoverOffset: 16
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              color: '#1e293b',
+              font: { weight: '600', size: 14 }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: context => {
+                const label = context.label || '';
+                const val = context.parsed || 0;
+                return `${label}: $${val.toLocaleString()}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function generateColors(n) {
+    const baseColors = [
+      '#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#9333ea', '#0891b2',
+      '#f97316', '#374151', '#db2777', '#0f766e'
+    ];
+    let colors = [];
+    for (let i=0; i<n; i++) {
+      colors.push(baseColors[i % baseColors.length]);
+    }
+    return colors;
+  }
+</script>
+</body>
+</html>
+
+<style>
+  .info-card {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(37, 99, 235, 0.9);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.8);
+    white-space: nowrap;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+    z-index: 1000;
+  }
+</style>
+<div id="infoCard" class="info-card"></div>
+<script>
+  // Получаем элемент карточки
+  const infoCard = document.getElementById('infoCard');
+
+  // Функция прикрепления карточки к диаграмме
+  function setupInfoCard(chart, ctx) {
+    const canvas = ctx.canvas;
+    canvas.addEventListener('mousemove', event => {
+      const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+      if (points.length) {
+        const point = points[0];
+        const label = chart.data.labels[point.index];
+        const value = chart.data.datasets[point.datasetIndex].data[point.index];
+        infoCard.textContent = `${label}: $${value.toLocaleString()}`;
+        const rect = canvas.getBoundingClientRect();
+        infoCard.style.left = (event.clientX + 16) + 'px';
+        infoCard.style.top = (event.clientY + 16) + 'px';
+        infoCard.style.opacity = 1;
+      } else {
+        infoCard.style.opacity = 0;
+      }
+    });
+    canvas.addEventListener('mouseout', () => {
+      infoCard.style.opacity = 0;
+    });
+  }
+
+  // В местах создания диаграмм после init вызвать setupInfoCard с диаграммой и её context
+  // Например, в updatePieYears:
+  // setupInfoCard(pieChartYears, ctxYears);
+
+  // И в updatePieCities:
+  // setupInfoCard(pieChartCities, ctxCities);
+</script>
